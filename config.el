@@ -82,17 +82,21 @@
   )
 (defun my/org-get-agenda-files ()
   (let* ((todos
+          ;; all the potential TODO states
          (seq-map (apply-partially #'replace-regexp-in-string "(.*" "")
                   (seq-remove
                    (lambda (x) (or (string-equal "|" x) (eq x 'sequence)))
                    (apply #'append org-todo-keywords))))
+         ;; each file that includes any of the todo states
+         ;; might overshoot due to non todo mentions but who cares
          (files-todos (apply #'append
                              (seq-map (lambda (x) (my/run-rg x t org-directory)) todos
                               )) )
+         ;; each file that contains something of the form [y-m-d] or <y-m-d>
          (date-todos (apply #'append
                              (seq-map (lambda (x) (my/run-rg x nil org-directory)) (list "<\\d\\d\\d\\d" "\\[\\d\\d\\d\\d")
                               )) ))
-    (append date-todos files-todos)
+    (seq-filter (lambda (x) (or (string-suffix-p ".org" x) (string-suffix-p ".org-archive" x))) (append date-todos files-todos))
 ))
 ;; shift selection for org + setting the right agenda files even with org roam
 (after! org (setq org-support-shift-select t)
