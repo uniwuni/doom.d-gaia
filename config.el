@@ -6,8 +6,8 @@
 
 ;; Some functionality uses this to identify you, e.g. GPG configuration, email
 ;; clients, file templates and snippets. It is optional.
- (setq user-full-name "Uni Marx"
-       user-mail-address "uniwuni@protonmail.com")
+(setq user-full-name "Uni Marx"
+      user-mail-address "uniwuni@protonmail.com")
 
 ;; Doom exposes five (optional) variables for controlling fonts in Doom:
 ;;
@@ -73,5 +73,28 @@
 ;;
 ;; You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
 ;; they are implemented.
-(after! org (setq org-support-shift-select t))
+;;
+;; mixed pitch for org
 (add-hook 'org-mode-hook #'mixed-pitch-mode)
+;;
+(defun my/run-rg (pattern literal directory)
+  (string-split (shell-command-to-string (concat "rg -l " (if literal "-F " "") "'" pattern "' '" (expand-file-name directory) "'")))
+  )
+(defun my/org-get-agenda-files ()
+  (let* ((todos
+         (seq-map (apply-partially #'replace-regexp-in-string "(.*" "")
+                  (seq-remove
+                   (lambda (x) (or (string-equal "|" x) (eq x 'sequence)))
+                   (apply #'append org-todo-keywords))))
+         (files-todos (apply #'append
+                             (seq-map (lambda (x) (my/run-rg x t org-directory)) todos
+                              )) )
+         (date-todos (apply #'append
+                             (seq-map (lambda (x) (my/run-rg x nil org-directory)) (list "<\\d\\d\\d\\d" "\\[\\d\\d\\d\\d")
+                              )) ))
+    (append date-todos files-todos)
+))
+;; shift selection for org + setting the right agenda files even with org roam
+(after! org (setq org-support-shift-select t)
+        (advice-add #'org-agenda :before (lambda (&rest _args) (setq org-agenda-files (my/org-get-agenda-files))))
+  )
