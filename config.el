@@ -74,9 +74,14 @@
 ;; You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
 ;; they are implemented.
 ;;
+
+
+
 ;; mixed pitch for org
 (add-hook 'org-mode-hook #'mixed-pitch-mode)
-;;
+
+;; generate agenda files dynamically to avoid org roam spam
+
 (defun my/run-rg (pattern literal directory)
   (string-split (shell-command-to-string (concat "rg -l " (if literal "-F " "") "'" pattern "' '" (expand-file-name directory) "'")))
   )
@@ -120,3 +125,13 @@
           org-roam-ui-follow t
           org-roam-ui-update-on-save t
           org-roam-ui-open-on-start nil))
+
+;; auto start roam ui
+(add-hook 'org-mode-hook #'org-roam-ui-mode)
+
+(map! :after org-roam
+      :map org-mode-map
+      "C-c j" #'org-roam-node-find ;; mnemonic: jump
+      "C-c b" #'org-roam-node-insert ;; mnemonic: begin (one of the few that is free)
+      "C-c i i" #'org-id-get-create ;; mnemonic: iid
+      )
