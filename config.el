@@ -81,7 +81,7 @@
 (add-hook 'org-mode-hook #'mixed-pitch-mode)
 
 ;; generate agenda files dynamically to avoid org roam spam
-
+(require 'cl-lib)
 (defun my/run-rg (pattern literal directory)
   (string-split (shell-command-to-string (concat "rg -l " (if literal "-F " "") "'" pattern "' '" (expand-file-name directory) "'")))
   )
@@ -100,8 +100,10 @@
          ;; each file that contains something of the form [y-m-d] or <y-m-d>
          (date-todos (apply #'append
                              (seq-map (lambda (x) (my/run-rg x nil org-directory)) (list "<\\d\\d\\d\\d" "\\[\\d\\d\\d\\d")
-                              )) ))
-    (seq-filter (lambda (x) (or (string-suffix-p ".org" x) (string-suffix-p ".org-archive" x))) (append date-todos files-todos))
+                              )) )
+         (todo-files (append date-todos files-todos))
+         (todos-filtered (cl-set-difference todo-files (my/run-rg ":AGENDA_FILE:\s*f\s*$" nil org-directory) :test #'equal)))
+    (seq-filter (lambda (x) (or (string-suffix-p ".org" x) (string-suffix-p ".org-archive" x))) todos-filtered)
 ))
 ;; shift selection for org + setting the right agenda files even with org roam
 (after! org (setq org-support-shift-select t)
@@ -127,7 +129,7 @@
           org-roam-ui-open-on-start nil))
 
 ;; auto start roam ui
-(add-hook 'org-mode-hook #'org-roam-ui-mode)
+(add-hook 'org-mode-hook (lambda () (if (not org-roam-ui-mode) (org-roam-ui-mode))))
 
 (map! :after org-roam
       :map org-mode-map
