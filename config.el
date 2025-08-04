@@ -108,6 +108,22 @@
 ;; shift selection for org + setting the right agenda files even with org roam
 (after! org (setq org-support-shift-select t)
         (advice-add #'org-agenda :before (lambda (&rest _args) (setq org-agenda-files (my/org-get-agenda-files))))
+
+        ;; publishing
+        (setq org-html-html5-fancy t)
+        (setq org-html-doctype "html5")
+        (setq org-html-mathjax-template
+              "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css\" integrity=\"sha384-5TcZemv2l/9On385z///+d7MSYlvIEw9FuZTIdZ14vJLqWphw7e7ZPuOiCHJcFCP\" crossorigin=\"anonymous\">
+
+              <script defer src=\"https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js\" integrity=\"sha384-cMkvdD8LoxVzGF/RPUKAcvmm49FQ0oxwDF3BGKtDXcEc+T1b2N+teh/OJfpU0jr6\" crossorigin=\"anonymous\"></script>
+
+              <script defer src=\"https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js\" integrity=\"sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh\" crossorigin=\"anonymous\"
+             onload=\"renderMathInElement(document.body, {&quot;trust&quot;: true, &quot;globalGroup&quot;: true});\"></script>")
+        (setq org-publish-project-alist
+              '(("roam"
+                 :base-directory "~/workspace/roam/"
+                 :publishing-directory "~/workspace/roam-publish"
+                 :auto-sitemap t)))
   )
 
 
@@ -130,6 +146,9 @@
 
 ;; auto start roam ui
 (add-hook 'org-mode-hook (lambda () (if (not org-roam-ui-mode) (org-roam-ui-mode))))
+(add-hook 'org-mode-hook (lambda () (require 'org-roam-export)))
+
+
 
 (map! :after org-roam
       :map org-mode-map
@@ -137,3 +156,79 @@
       "C-c b" #'org-roam-node-insert ;; mnemonic: begin (one of the few that is free)
       "C-c i i" #'org-id-get-create ;; mnemonic: iid
       )
+
+
+(defun org-html-headline (headline contents info)
+  "Transcode a HEADLINE element from Org to HTML.
+CONTENTS holds the contents of the headline.  INFO is a plist
+holding contextual information."
+  (unless (org-element-property :footnote-section-p headline)
+    (let* ((numberedp (org-export-numbered-headline-p headline info))
+           (numbers (org-export-get-headline-number headline info))
+           (level (+ (org-export-get-relative-level headline info)
+                     (1- (plist-get info :html-toplevel-hlevel))))
+           (todo (and (plist-get info :with-todo-keywords)
+                      (let ((todo (org-element-property :todo-keyword headline)))
+                        (and todo (org-export-data todo info)))))
+           (todo-type (and todo (org-element-property :todo-type headline)))
+           (priority (and (plist-get info :with-priority)
+                          (org-element-property :priority headline)))
+           (text (org-export-data (org-element-property :title headline) info))
+           (tags (and (plist-get info :with-tags)
+                      (org-export-get-tags headline info)))
+           (full-text (funcall (plist-get info :html-format-headline-function)
+                               todo todo-type priority text tags info))
+           (contents (or contents ""))
+	   (id (org-html--reference headline info))
+	   (formatted-text
+	    (if (plist-get info :html-self-link-headlines)
+		(format "<a href=\"#%s\">%s</a>" id full-text)
+	      full-text)))
+      (if (org-export-low-level-p headline info)
+          ;; This is a deep sub-tree: export it as a list item.
+          (let* ((html-type (if numberedp "ol" "ul")))
+	    (concat
+	     (and (org-export-first-sibling-p headline info)
+		  (format "<%s class=\"org-%s %s\">\n"
+			 html-type
+                         html-type
+                         (mapconcat (lambda (tag) (concat "tag-" tag " ")) tags)))
+	     (org-html-format-list-item
+	      contents (if numberedp 'ordered 'unordered)
+	      nil info nil
+	      (concat (org-html--anchor id nil nil info) formatted-text)) "\n"
+	     (and (org-export-last-sibling-p headline info)
+		  (format "</%s>\n" html-type))))
+	;; Standard headline.  Export it as a section.
+        (let ((extra-class
+	       (org-element-property :HTML_CONTAINER_CLASS headline))
+	      (headline-class
+	       (org-element-property :HTML_HEADLINE_CLASS headline))
+              (first-content (car (org-element-contents headline))))
+          (format "<%s id=\"%s\" class=\"%s %s\">%s%s</%s>\n"
+                  (org-html--container headline info)
+                  (format "outline-container-%s" id)
+                  (concat (format "outline-%d" level)
+                          (and extra-class " ")
+                          extra-class)
+                  (mapconcat (lambda (tag) (concat "tag-" tag " ")) tags)
+                  (format "\n<h%d id=\"%s\" class=\"%s\">%s</h%d>\n"
+                          level
+                          id
+			  (if (not headline-class) (mapconcat (lambda (tag) (concat "tag-" tag " ")) tags)
+			    (format "%s %s" headline-class (mapconcat (lambda (tag) (concat "tag-" tag " ")) tags)))
+                          (concat
+                           (and numberedp
+                                (format
+                                 "<span class=\"section-number-%d\">%s</span> "
+                                 level
+                                 (concat (mapconcat #'number-to-string numbers ".") ".")))
+                           formatted-text)
+                          level)
+                  ;; When there is no section, pretend there is an
+                  ;; empty one to get the correct <div
+                  ;; class="outline-...> which is needed by
+                  ;; `org-info.js'.
+                  (if (org-element-type-p first-content 'section) contents
+                    (concat (org-html-section first-content "" info) contents))
+                  (org-html--container headline info)))))))
