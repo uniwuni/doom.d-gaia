@@ -157,50 +157,24 @@ div.tag-proof::after{
   right: 0;
   bottom: 0;
 }
+div.tag-definition { padding: 10px; border: 2px solid green; margin: 5px; background-color: #cfc; border-radius: 12px; }
+div.tag-notation { padding: 10px; border: 2px solid gray; margin: 5px; background-color: #ccc; border-radius: 12px; }
+div.tag-proposition { padding: 10px; border: 2px solid blue; margin: 5px;background-color: #ccf; border-radius: 12px; }
+div.tag-remark { padding: 10px; border: 2px solid red; margin: 5px; background-color: #eae; border-radius: 12px; }
+div.tag-theorem { padding: 10px; border: 2px solid yellow; margin: 5px; background-color: #eea; border-radius: 12px; }
+div.tag-lemma { padding: 10px; border: 2px solid orange; margin: 5px; background-color: #fcc; border-radius: 12px; }
+div.tag-proof, div.tag-proofsketch { position: relative; padding: 10px; border: 1px solid grey; background-color: rgba(255,255,255, 0.5) }
+h1.tag-proof,  h2.tag-proof,  h3.tag-proof,  h4.tag-proof,  h5.tag-proof,  h6.tag-proof,  h7.tag-proof,  h8.tag-proof,  h1.tag-proofsketch,  h2.tag-proofsketch,  h3.tag-proofsketch,  h4.tag-proofsketch,  h5.tag-proofsketch,  h6.tag-proofsketch,  h7.tag-proofsketch, h8.tag-proofsketch {
+  font-variant-caps: small-caps;
 
-
-div.tag-proof { position: relative; }
+}
                </style>")
         (setq org-publish-project-alist
               '(("roam"
                  :base-directory "~/workspace/roam/"
                  :publishing-directory "~/workspace/roam-publish"
                  :auto-sitemap t)))
-  )
-
-
-; https://github.com/org-roam/org-roam-ui
-
-(use-package! websocket
-    :after org-roam)
-
-(use-package! org-roam-ui
-    :after org-roam ;; or :after org
-;;         normally we'd recommend hooking orui after org-roam, but since org-roam does not have
-;;         a hookable mode anymore, you're advised to pick something yourself
-;;         if you don't care about startup time, use
-;;  :hook (after-init . org-roam-ui-mode)
-    :config
-    (setq org-roam-ui-sync-theme t
-          org-roam-ui-follow t
-          org-roam-ui-update-on-save t
-          org-roam-ui-open-on-start nil))
-
-;; auto start roam ui
-(add-hook 'org-mode-hook (lambda () (if (not org-roam-ui-mode) (org-roam-ui-mode))))
-(add-hook 'org-mode-hook (lambda () (require 'org-roam-export)))
-
-
-
-(map! :after org-roam
-      :map org-mode-map
-      "C-c j" #'org-roam-node-find ;; mnemonic: jump
-      "C-c b" #'org-roam-node-insert ;; mnemonic: begin (one of the few that is free)
-      "C-c i i" #'org-id-get-create ;; mnemonic: iid
-      )
-
-
-(defun org-html-headline (headline contents info)
+        (defun org-html-headline (headline contents info)
   "Transcode a HEADLINE element from Org to HTML.
 CONTENTS holds the contents of the headline.  INFO is a plist
 holding contextual information."
@@ -274,3 +248,54 @@ holding contextual information."
                   (if (org-element-type-p first-content 'section) contents
                     (concat (org-html-section first-content "" info) contents))
                   (org-html--container headline info)))))))
+
+  )
+
+
+; https://github.com/org-roam/org-roam-ui
+
+(use-package! websocket
+    :after org-roam)
+
+(use-package! org-roam-ui
+    :after org-roam ;; or :after org
+;;         normally we'd recommend hooking orui after org-roam, but since org-roam does not have
+;;         a hookable mode anymore, you're advised to pick something yourself
+;;         if you don't care about startup time, use
+;;  :hook (after-init . org-roam-ui-mode)
+    :config
+    (setq org-roam-ui-sync-theme t
+          org-roam-ui-follow t
+          org-roam-ui-update-on-save t
+          org-roam-ui-open-on-start nil))
+
+;; auto start roam ui
+(add-hook 'org-mode-hook (lambda () (if (not org-roam-ui-mode) (org-roam-ui-mode))))
+(add-hook 'org-mode-hook (lambda () (require 'org-roam-export)))
+
+
+
+(map! :after org-roam
+      :map org-mode-map
+      "C-c j" #'org-roam-node-find ;; mnemonic: jump
+      "C-c b" #'org-roam-node-insert ;; mnemonic: begin (one of the few that is free)
+      "C-c i i" #'org-id-get-create ;; mnemonic: iid
+      "C-c i p" #'my/make-proof ;; insert proof
+      )
+
+
+
+(defun my/make-proof ()
+  (interactive)
+  (org-id-get-create)
+  (let ((id (org-id-get nil))
+        (title (save-excursion
+                 (outline-previous-heading)
+                 (org-element-property :title (org-element-at-point))
+                 ))
+        )
+    (org-insert-subheading nil)
+    (insert "proof of ")
+    (insert (concat "[[id:" id "][" title "]] :proof:" "\n"))
+    (org-id-get-create)
+    ))
