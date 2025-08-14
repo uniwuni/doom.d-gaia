@@ -161,6 +161,7 @@ div.tag-definition { padding: 10px; border: 2px solid green; margin: 5px; backgr
 div.tag-notation { padding: 10px; border: 2px solid gray; margin: 5px; background-color: #ccc; border-radius: 12px; }
 div.tag-proposition { padding: 10px; border: 2px solid blue; margin: 5px;background-color: #ccf; border-radius: 12px; }
 div.tag-remark { padding: 10px; border: 2px solid red; margin: 5px; background-color: #eae; border-radius: 12px; }
+div.tag-example { padding: 10px; border: 2px solid red; margin: 5px; background-color: #e9a; border-radius: 12px; }
 div.tag-theorem { padding: 10px; border: 2px solid yellow; margin: 5px; background-color: #eea; border-radius: 12px; }
 div.tag-lemma { padding: 10px; border: 2px solid orange; margin: 5px; background-color: #fcc; border-radius: 12px; }
 div.tag-proof, div.tag-proofsketch { position: relative; padding: 10px; border: 1px solid grey; background-color: rgba(255,255,255, 0.5) }
@@ -174,7 +175,7 @@ h1.tag-proof,  h2.tag-proof,  h3.tag-proof,  h4.tag-proof,  h5.tag-proof,  h6.ta
                  :base-directory "~/workspace/roam/"
                  :publishing-directory "~/workspace/roam-publish"
                  :auto-sitemap t)))
-        (defun org-html-headline (headline contents info)
+        (defun my/org-html-headline (headline contents info)
   "Transcode a HEADLINE element from Org to HTML.
 CONTENTS holds the contents of the headline.  INFO is a plist
 holding contextual information."
@@ -248,6 +249,7 @@ holding contextual information."
                   (if (org-element-type-p first-content 'section) contents
                     (concat (org-html-section first-content "" info) contents))
                   (org-html--container headline info)))))))
+        (advice-add 'org-html-headline :override #'my/org-html-headline)
 
   )
 
