@@ -167,8 +167,14 @@ div.tag-lemma { padding: 10px; border: 2px solid orange; margin: 5px; background
 div.tag-proof, div.tag-proofsketch { position: relative; padding: 10px; border: 1px solid grey; background-color: rgba(255,255,255, 0.5) }
 h1.tag-proof,  h2.tag-proof,  h3.tag-proof,  h4.tag-proof,  h5.tag-proof,  h6.tag-proof,  h7.tag-proof,  h8.tag-proof,  h1.tag-proofsketch,  h2.tag-proofsketch,  h3.tag-proofsketch,  h4.tag-proofsketch,  h5.tag-proofsketch,  h6.tag-proofsketch,  h7.tag-proofsketch, h8.tag-proofsketch {
   font-variant-caps: small-caps;
-
 }
+.quiver-embed {margin: auto; display: block}
+.backlink-details[open] {max-height: 200px; overflow-y: auto;}
+.backlink-details > summary {line-height: 100%}
+.backlink-details {max-height: auto}
+.backlink-details > p {font-size: 80%; display: inline-block; margin: 0}
+.backlink-details > p:nth-child(-n+3) {display: none}
+.backlink-details > p:nth-child(n+4)::before { content: ' • '; color: grey }
                </style>")
         (setq org-publish-project-alist
               '(("roam"
@@ -311,3 +317,57 @@ holding contextual information."
                  ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
                  ("\\paragraph{%s}" . "\\paragraph*{%s}")
                  ("\\subparagraph{%s}" . "\\subparagraph*{%s}"))))
+
+
+;; backlinks
+(defun collect-backlinks-string (_backend)
+  (when (org-roam-node-at-point)
+    (let* ((nodes-in-file (let ((-compare-fn (lambda (x y) (equal (org-roam-node-id x) (org-roam-node-id y)))))
+                            (-uniq (--filter (s-equals? (org-roam-node-file it) (org-roam-node-file (org-roam-node-at-point)))
+                                    (org-roam-node-list)))))
+           (nodes-start-position (-map 'org-roam-node-point nodes-in-file))
+           ;; Nodes don't store the last position, so get the next headline position
+           ;; and subtract one character (or, if no next headline, get point-max)
+           (nodes-end-position (-map (lambda (nodes-start-position)
+                                       (goto-char nodes-start-position)
+                                       (if (org-before-first-heading-p) ;; file node
+                                           (point-max)
+                                         (call-interactively
+                                          'org-next-visible-heading)
+                                         (if (> (point) nodes-start-position)
+                                             (- (point) 1) ;; successfully found next
+                                           (point-max)))) ;; there was no next
+                                     nodes-start-position))
+           ;; sort in order of decreasing end position
+           (nodes-in-file-sorted (->> (-zip-pair nodes-in-file nodes-end-position)
+                                      (--sort (> (cdr it) (cdr other))))))
+      (dolist (node-and-end nodes-in-file-sorted)
+        (-let (((node . end-position) node-and-end))
+          (when (org-roam-backlinks-get node)
+            (goto-char end-position)
+            ;; Add the references as a subtree of the node
+            (insert
+             "
+#+attr_html: :class backlink-details
+#+begin_details
+@@html:<summary>@@Backlinks@@html:</summary>@@
+
+"
+             )
+            (dolist (backlink (org-roam-backlinks-get node :unique t))
+              (let* ((source-node (org-roam-backlink-source-node backlink))
+                     ;(properties (org-roam-backlink-properties backlink))
+                     ;(outline (when-let ((outline (plist-get properties :outline)))
+                     ;             (mapconcat #'org-link-display-format outline " > ")))
+;                     (point (org-roam-backlink-point backlink))
+                     ;(text (s-replace "\n" " " (org-roam-preview-get-contents
+                     ;                           (org-roam-node-file source-node)
+                     ;                           point)))
+                     (reference (format "[[id:%s][%s]]\n\n"
+                                        (org-roam-node-id source-node)
+                                        (org-roam-node-title source-node)
+
+                                        )))
+                (insert reference)))
+            (insert "\n#+end_details\n")))))))
+(add-hook 'org-export-before-processing-hook 'collect-backlinks-string)
