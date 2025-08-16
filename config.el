@@ -171,7 +171,8 @@ h1.tag-proof,  h2.tag-proof,  h3.tag-proof,  h4.tag-proof,  h5.tag-proof,  h6.ta
 .quiver-embed {margin: auto; display: block}
 .backlink-details[open] {max-height: 200px; overflow-y: auto;}
 .backlink-details > summary {line-height: 100%}
-.backlink-details {max-height: auto}
+.backlink-details[open] > summary {margin-bottom: 0.3em}
+.backlink-details {max-height: auto; margin-bottom: 0.3em}
 .backlink-details > p {font-size: 80%; display: inline-block; margin: 0}
 .backlink-details > p:nth-child(-n+3) {display: none}
 .backlink-details > p:nth-child(n+4)::before { content: ' • '; color: grey }
@@ -321,7 +322,7 @@ holding contextual information."
 
 ;; backlinks
 (defun collect-backlinks-string (_backend)
-  (when (org-roam-node-at-point)
+  (when (and (org-roam-node-at-point) (equal _backend 'html))
     (let* ((nodes-in-file (let ((-compare-fn (lambda (x y) (equal (org-roam-node-id x) (org-roam-node-id y)))))
                             (-uniq (--filter (s-equals? (org-roam-node-file it) (org-roam-node-file (org-roam-node-at-point)))
                                     (org-roam-node-list)))))
@@ -370,4 +371,4 @@ holding contextual information."
                                         )))
                 (insert reference)))
             (insert "\n#+end_details\n")))))))
-(add-hook 'org-export-before-processing-hook 'collect-backlinks-string)
+(add-hook 'org-export-before-processing-functions 'collect-backlinks-string)
