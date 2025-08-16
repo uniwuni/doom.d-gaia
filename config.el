@@ -321,8 +321,8 @@ holding contextual information."
 
 
 ;; backlinks
-(defun collect-backlinks-string (_backend)
-  (when (and (org-roam-node-at-point) (equal _backend 'html))
+(defun collect-backlinks-string (backend)
+  (when (and (org-roam-node-at-point) (equal backend 'html))
     (let* ((nodes-in-file (let ((-compare-fn (lambda (x y) (equal (org-roam-node-id x) (org-roam-node-id y)))))
                             (-uniq (--filter (s-equals? (org-roam-node-file it) (org-roam-node-file (org-roam-node-at-point)))
                                     (org-roam-node-list)))))
