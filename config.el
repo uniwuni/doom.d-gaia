@@ -164,6 +164,7 @@ div.tag-remark { padding: 10px; border: 2px solid red; margin: 5px; background-c
 div.tag-example { padding: 10px; border: 2px solid red; margin: 5px; background-color: #e9a; border-radius: 12px; }
 div.tag-theorem { padding: 10px; border: 2px solid yellow; margin: 5px; background-color: #eea; border-radius: 12px; }
 div.tag-lemma { padding: 10px; border: 2px solid orange; margin: 5px; background-color: #fcc; border-radius: 12px; }
+div.tag-exercise { padding: 10px; border: 2px solid DarkKhaki; margin: 5px; background-color: #ddb; border-radius: 12px; }
 div.tag-proof, div.tag-proofsketch { position: relative; padding: 10px; border: 1px solid grey; background-color: rgba(255,255,255, 0.5) }
 h1.tag-proof,  h2.tag-proof,  h3.tag-proof,  h4.tag-proof,  h5.tag-proof,  h6.tag-proof,  h7.tag-proof,  h8.tag-proof,  h1.tag-proofsketch,  h2.tag-proofsketch,  h3.tag-proofsketch,  h4.tag-proofsketch,  h5.tag-proofsketch,  h6.tag-proofsketch,  h7.tag-proofsketch, h8.tag-proofsketch {
   font-variant-caps: small-caps;
@@ -372,3 +373,53 @@ holding contextual information."
                 (insert reference)))
             (insert "\n#+end_details\n")))))))
 (add-hook 'org-export-before-processing-functions 'collect-backlinks-string)
+(setq org-supertag-sync-directories '("/home/uni/workspace/"))
+(eval-after-load 'gptel
+  '(require 'org-supertag))
+
+
+(use-package lsp)
+(add-to-list 'lsp-language-id-configuration '(".*\\.[[:alpha:]]+\\.tex$" . "stex"))
+(setq my/flams-last-built-url "")
+(setq my/flams-server-url "")
+(setq my/flams-path "/home/uni/flams/flams")
+(setq my/mathhub-path "/home/uni/MathHub")
+(lsp-register-client (make-lsp-client
+                      :new-connection (lsp-stdio-connection (list my/flams-path "--lsp"))
+                      :activation-fn (lsp-activate-on "stex")
+                      :notification-handlers (ht ("flams/htmlResult" (lambda (_w x) (setq my/flams-last-built-url (gethash "url" x))))
+                                                 ("flams/serverURL" (lambda (_w x) (setq my/flams-server-url (gethash "url" x)))))
+                      :server-id 'flams))
+(defun my/flams-open-last-preview ()
+  (interactive)
+  (browse-url (concat my/flams-server-url "/document?uri=" (url-hexify-string my/flams-last-built-url nil) ) ))
+
+(add-hook 'find-file-hook
+          (lambda ()
+            (when (string-match ".*\\.[[:alpha:]]+\\.tex$" buffer-file-name)
+              (lsp-mode +1))))
+
+(defun my/search-mathhub-symbol (sym)
+  (interactive "sSymbol to search: ")
+  (rg (concat "\\\\(symdecl\\*?|symdef|notation\\*?)\\{" sym "\\}") "*.tex" my/mathhub-path))
+
+(use-package rg)
+(rg-define-search my/search-mathhub-symbol-at-point "Search MathHub for declaration of the symbol at point"
+  :query (concat "\\\\(symdecl\\*?|symdef|notation\\*?)\\{" (rg-tag-default) "\\}")
+  :files current
+  :dir my/mathhub-path)
+(rg-define-search my/search-mathhub-srs-right-at-point "Search MathHub for sr-uses of the words at point"
+  :query (concat "\\\\sr\\{[^}]*\\}\\{" (rg-tag-default) "\\}")
+  :files current
+  :dir my/mathhub-path)
+(rg-define-search my/search-mathhub-srs-left-at-point "Search MathHub for sr-uses of the symbol at point (to tell you potential synonyms)"
+  :query (concat "\\\\sr\\{" (rg-tag-default) "\\}\\{[^}]*\\}")
+  :files current
+  :dir my/mathhub-path) ; TODO sn search
+(global-set-key (kbd "C-c b d") #'my/search-mathhub-symbol-at-point)
+(global-set-key (kbd "C-c b s") #'my/search-mathhub-srs-right-at-point)
+(global-set-key (kbd "C-c b t") #'my/search-mathhub-srs-left-at-point)
+(global-set-key (kbd "C-c b p") #'my/flams-open-last-preview)
+
+(setq lsp-ui-sideline-show-hover t)
+(setq lsp-ui-doc-show-with-cursor t)

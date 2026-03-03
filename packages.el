@@ -49,3 +49,9 @@
 ;; (unpin! t)
 (unpin! org-roam)
 (package! org-roam-ui)
+(package! ht)
+(package! gptel)
+(package! rg)
+(package! org-supertag
+  :recipe (:host github
+           :repo "yibie/org-supertag"))
