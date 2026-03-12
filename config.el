@@ -421,5 +421,44 @@ holding contextual information."
 (global-set-key (kbd "C-c b t") #'my/search-mathhub-srs-left-at-point)
 (global-set-key (kbd "C-c b p") #'my/flams-open-last-preview)
 
+(defun my/copy-rg-match-at-click (event)
+  "Copy the specific ripgrep match under the mouse click."
+  (interactive "e")
+  (save-excursion
+    (posn-set-point (event-end event))
+    (let* ((pos (point))
+           (face (get-text-property pos 'face))
+           (beg (previous-single-property-change (1+ pos) 'face))
+           (end (next-single-property-change pos 'face)))
+      (if (and beg end (or (eq face 'rg-match-face) (eq face 'match)))
+          (let ((match-text (buffer-substring-no-properties beg end)))
+            (kill-new match-text)
+            (message "Copied match: %s" match-text))
+        (message "No ripgrep match found at click.")))))
+
+(define-key rg-mode-map (kbd "<mouse-1>") 'my/copy-rg-match-at-click)
+
+(defvar my/srify-history nil)
+(defun my/srify (term)
+  (interactive
+   (list (consult--read
+          my/srify-history
+          :prompt "Term: "
+          :sort t
+          :category 'latex-term
+          :history 'my/srify-history
+          :add-history (thing-at-point 'word t))))
+  (let ((bounds (if (use-region-p)
+                    (cons (region-beginning) (region-end))
+                  (bounds-of-thing-at-point 'word)))
+        original-text)
+    (if (not bounds)
+        (message "nothing to link here")
+      (setq original-text (buffer-substring-no-properties (car bounds) (cdr bounds)))
+      (delete-region (car bounds) (cdr bounds))
+      (insert (format "\\sr{%s}{%s}" term original-text)))))
+(global-set-key (kbd "C-c r") #'my/srify)
+
+
 (setq lsp-ui-sideline-show-hover t)
 (setq lsp-ui-doc-show-with-cursor t)
