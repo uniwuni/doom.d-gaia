@@ -416,10 +416,12 @@ holding contextual information."
   :query (concat "\\\\sr\\{" (rg-tag-default) "\\}\\{[^}]*\\}")
   :files current
   :dir my/mathhub-path) ; TODO sn search
-(global-set-key (kbd "C-c b d") #'my/search-mathhub-symbol-at-point)
-(global-set-key (kbd "C-c b s") #'my/search-mathhub-srs-right-at-point)
-(global-set-key (kbd "C-c b t") #'my/search-mathhub-srs-left-at-point)
-(global-set-key (kbd "C-c b p") #'my/flams-open-last-preview)
+(add-hook 'LaTeX-mode-hook
+          (lambda () (progn (local-set-key (kbd "C-c b d") #'my/search-mathhub-symbol-at-point)
+                            (local-set-key (kbd "C-c b s") #'my/search-mathhub-srs-right-at-point)
+                            (local-set-key (kbd "C-c b t") #'my/search-mathhub-srs-left-at-point)
+                            (local-set-key (kbd "C-c b p") #'my/flams-open-last-preview)
+                            (local-set-key (kbd "C-c r") #'my/srify))))
 
 (defun my/copy-rg-match-at-click (event)
   "Copy the specific ripgrep match under the mouse click."
@@ -457,7 +459,7 @@ holding contextual information."
       (setq original-text (buffer-substring-no-properties (car bounds) (cdr bounds)))
       (delete-region (car bounds) (cdr bounds))
       (insert (format "\\sr{%s}{%s}" term original-text)))))
-(global-set-key (kbd "C-c r") #'my/srify)
+
 
 
 (setq lsp-ui-sideline-show-hover t)
