@@ -13,7 +13,10 @@
 ;;
 ;;      Alternatively, press 'gd' (or 'C-c c d') on a module to browse its
 ;;      directory (for easy access to its source code).
-
+(when (string-equal system-type "android")  ;; Add Termux binaries to PATH environment
+  (let ((termuxpath "/data/data/com.termux/files/usr/bin"))
+    (setenv "PATH" (concat (getenv "PATH") ":" termuxpath))
+    (setq exec-path (append exec-path (list termuxpath)))))
 (doom! :input
        ;;bidi              ; (tfel ot) thgir etirw uoy gnipleh
        ;;chinese
