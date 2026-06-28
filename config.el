@@ -464,3 +464,75 @@ holding contextual information."
 
 (setq lsp-ui-sideline-show-hover t)
 (setq lsp-ui-doc-show-with-cursor t)
+(defun my/quotes-umlaut (start end)
+  "Replace \"a, \"A, \"o, \"O, \"u, and \"U with umlauts within the selection."
+  (interactive "r") ; "r" automatically passes the boundaries of the active region/selection
+  (let ((replacements '(("\"a" . "ä") ("\"A" . "Ä")
+                        ("\"o" . "ö") ("\"O" . "Ö")
+                        ("\"u" . "ü") ("\"U" . "Ü")))
+        (case-fold-search nil))
+    (save-excursion
+      (save-restriction
+        ;; Narrow the buffer to just the selection so we don't accidentally
+        ;; replace text outside of it.
+        (narrow-to-region start end)
+        (dolist (pair replacements)
+          (goto-char (point-min))
+          (while (search-forward (car pair) nil t)
+            (replace-match (cdr pair) t t)))))))
+(defun my/insert-smglom-module ()
+  "Interactively query for a smglom folder and module file, then insert a \\usemodule macro."
+  (interactive)
+  (let* ((smglom-dir (expand-file-name "smglom" my/mathhub-path))
+
+         ;; 1. Get folders inside my/mathhub-path/smglom
+         (folders (if (file-directory-p smglom-dir)
+                      (directory-files smglom-dir nil "^[^.]")
+                    (error "Directory does not exist: %s" smglom-dir)))
+         (chosen-folder (consult--read folders
+                                       :prompt "Select smglom folder (abc): "
+                                       :require-match t))
+
+         ;; 2. Construct path to .../abc/source/mod
+         (mod-dir (expand-file-name (concat chosen-folder "/source/mod") smglom-dir))
+
+         ;; 3. Get files inside that directory (filtering out directories/dots)
+         (files (if (file-directory-p mod-dir)
+                    (directory-files mod-dir nil "^[^.]")
+                  (error "Directory does not exist: %s" mod-dir)))
+         (chosen-file (consult--read files
+                                     :prompt "Select module file (def): "
+                                     :require-match t))
+
+         ;; Strip extension from the filename (e.g., "def.tex" -> "def")
+         (mod-name (if (string-match "\\." chosen-file)
+                       (substring chosen-file 0 (match-beginning 0))
+                     chosen-file)))
+
+    ;; 4. Insert the string at point
+    (insert (format "\\usemodule[smglom/%s]{mod?%s}" chosen-folder mod-name))))
+(defun my/copy-usemodule-from-rg-line ()
+  "Extract smglom folder and module name from the current line and copy to clipboard."
+  (interactive)
+  (let ((line (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
+        ;; Match: smglom/ [folder] / ... /mod/ [file] (stopping at the first dot)
+        (regex "smglom/\\([^/]+\\)/.+/mod/\\([^/.]+\\)"))
+    (if (string-match regex line)
+        (let* ((folder (match-string 1 line))
+               (file (match-string 2 line))
+               (macro (format "\\usemodule[smglom/%s]{mod?%s}" folder file)))
+          (kill-new macro)
+          (message "Copied macro: %s" macro))
+      (message "Line does not match a valid smglom module path."))))
+
+(defun my/rg-click-to-copy-advice (orig-fun &rest args)
+  "Intercept rg/compilation clicks to copy \\usemodule macro if a smglom path is found."
+  (message "a")
+  (let ((line (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+    (if (string-match "smglom/" line)
+        (my/copy-usemodule-from-rg-line)
+      (apply orig-fun args))))
+
+;; Advise the standard compile/rg jump action
+(advice-add 'compile-goto-error :around #'my/rg-click-to-copy-advice)
+(advice-add 'compile-mouse-goto-error :around #'my/rg-click-to-copy-advice)
